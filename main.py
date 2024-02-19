@@ -39,12 +39,22 @@ def valida_data_nascimento(data_nascimento):
                             # se o ano não é futuro e
                             # se a idade é menor que 122 anos.
     dia, mes, ano = int(data_nascimento[:2]), int(data_nascimento[2:4]), int(data_nascimento[4:8])
-    ano_atual = datetime.now().year
+    
+    # Obter a data atual
+    data_atual = datetime.now()
 
-    if dia > 31: return "Data de nascimento inválida. Verifique o dia inserido."
-    if mes > 12: return "Data de nascimento inválida. Verifique o mês inserido."
-    if ano >= ano_atual: return f"Data de nascimento inválida. O ano inserido é superior ao atual: {ano_atual}."
-    if (ano_atual - ano) >= 122: return "Data de nascimento inválida. A idade supera os 122 anos."
+    # Verificações básicas de validade da data
+    if dia > 31:
+        return "Data de nascimento inválida. Verifique o dia inserido."
+    if mes > 12:
+        return "Data de nascimento inválida. Verifique o mês inserido."
+    
+    if ano > data_atual.year or (ano == data_atual.year and mes > data_atual.month) or \
+    (ano == data_atual.year and mes == data_atual.month and dia > data_atual.day):
+        return f"Data de nascimento inválida. A data inserida é futura: {dia}/{mes}/{ano}."
+    
+    if (data_atual.year - ano) > 122 or ((data_atual.year - ano) == 122 and (data_atual.month < mes or (data_atual.month == mes and data_atual.day < dia))):
+        return "Data de nascimento inválida. A idade supera os 122 anos."
     
     # Todas as validações foram aprovadas. Retorna a função sem erros
     return None
