@@ -1,151 +1,87 @@
-# Importacoes
+### API desenvolvida em resposta ao desafio TechLabs para a vaga de estágio em Desenvolvimento no Itaú Unibando.
+### Desenvolvido por: Pedro Ribeiro Silva.
+
+### IMPORTAÇÕES ###
 import re
 from flask import Flask, make_response, jsonify, request
 from bd import Pessoas
 from datetime import datetime
 
-
 # Instanciando variavel 
 app = Flask(__name__)
-# Não ordenar o response em ordem alfabética
-app.json.sort_keys = False 
+app.json.sort_keys = False # Não ordenar o response em ordem alfabética
 
-### ROTAS CRUD ###
 
-## CREATE | Cadastro
-@app.route('/cadastro', methods=['POST'])
-def create():
-    dados_inseridos = request.json
-
-    ## Validaçoes ##
-    
-    ## Validacao de campos inseridos
-    ############################################################
-    nome = dados_inseridos.get('nome', '').strip()
-    print (nome)
-    data_nascimento = dados_inseridos.get('nascimento', '').strip()
-    endereco = dados_inseridos.get('endereco', '').strip()
-    cpf = dados_inseridos.get('cpf', '').strip()
-    estado_civil = dados_inseridos.get('estado_civil', '').strip()
-
-    # Cria uma lista
-    valores = [nome, data_nascimento, endereco, cpf, estado_civil]
-
-    # Verificação se algum campo está vazio
-    if any(valor == '' for valor in valores): # Se sim
-        return make_response(
-            jsonify(
-                Mensagem="Por favor, preencha todos os valores solicitados: Nome completo, data de nascimento, endereço, CPF e estado civil."
-            ), 400  # Cód. Bad Request
-        )
-    
-    ## Validação de Nome completo e válido
-    ############################################################
+### FUNÇÕES ###
+## FUNÇÕES > VALIDAÇÕES ( CREATE | UPDTAE ) ##
+def valida_nome(nome):
     # Verifica se possui nome e sobrenome
-    if nome.count(" ") < 1:  
-        return make_response(
-            jsonify(
-                Mensagem="Por favor, insira nome e sobrenome."
-            ), 400  # Cód. Bad Request
-        )
+    if nome.count(" ") < 1:
+        return "Por favor, insira nome e sobrenome."
     
     # Verifica se o nome contém números ou caracteres especiais não permitidos
     if re.search(r'[0-9.,/\'":;!@#$%^&*()_+=-]', nome):
-        return make_response(
-            jsonify(
-                Mensagem="O nome não deve conter números ou caracteres especiais."
-            ), 400
-        )
+        return "O nome não deve conter números ou caracteres especiais."
 
+    # Todas as validações foram aprovadas. Retorna sem erros
+    return None
 
-
-    ## Validação de data de nascimento 
-    ############################################################
-    # Checa a existência de letras ou caracteres diferentes de / ou -
-    if re.search(r"[^0-9/\-]", data_nascimento):
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. Utilize apenas números e (/) ou (-) como divisores."), 400
-        )
-
-    # Remove separadores para demais validações
-    data_nascimento = data_nascimento.replace("/", "").replace("-", "")
-
+def valida_data_nascimento(data_nascimento):
+    #Limpa a data de nascimento inserida, deixando apenas números
+    data_nascimento = re.sub(r'[^0-9]', '', data_nascimento)
+    print (data_nascimento)
+    
     # Verifica se a data inserida possui 8 caracteres
     if not len(data_nascimento) == 8:
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. O formato deve ser DD/MM/AAAA."), 400
-        )
-
-    # Verifica se data condiz com o padrão DD/MM/AAAA e se a idade é menor que 122 anos
-    dia_inserido = int(data_nascimento[:2])
-    # Dia
-    if dia_inserido > 31:
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. O dia inserido não é válido."), 400
-        )
-    mes_inserido = int(data_nascimento[2:4])
-    # Mês
-    if mes_inserido > 12:
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. O mês inserido não é válido."), 400
-        )
-    # Ano
-    ano_inserido = int(data_nascimento[4:8]) 
-    ano_atual = datetime.now().year # Obtém o ano atual
-    if ano_inserido >= ano_atual: # Verifica presente ou data futura
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. O ano inserido não é válido."), 400
-        )
-    if ((ano_atual - ano_inserido) >= 122 ): # Verifica idade ultrapassa 122 anos
-        return make_response(
-            jsonify(Mensagem="Data de nascimento inválida. Idade supera os 122 anos."), 400
-        )
+        return "Data de nascimento inválida. A data deve conter 8 números no padrão Dia/Mês/Ano. Com ou sem separador."
     
-    # Inserindo as barras para formar a data no formato DD/MM/AAAA
-    data_nascimento = data_nascimento[:2] + "/" + data_nascimento[2:4] + "/" + data_nascimento[4:]
+    # Verifica se a data condiz com o padrão DD/MM/AAAA,
+                            # se o ano não é futuro e
+                            # se a idade é menor que 122 anos.
+    dia, mes, ano = int(data_nascimento[:2]), int(data_nascimento[2:4]), int(data_nascimento[4:8])
+    ano_atual = datetime.now().year
 
+    if dia > 31: return "Data de nascimento inválida. Verifique o dia inserido."
+    if mes > 12: return "Data de nascimento inválida. Verifique o mês inserido."
+    if ano >= ano_atual: return f"Data de nascimento inválida. O ano inserido é superior ao atual: {ano_atual}."
+    if (ano_atual - ano) >= 122: return "Data de nascimento inválida. A idade supera os 122 anos."
+    
+    # Todas as validações foram aprovadas. Retorna a função sem erros
+    return None
 
-
-    ## Validação de endereço
-    ############################################################
+def valida_endereco(endereco):
     # Verifica se endereço possui pelo menos duas palavras
-    if endereco.count(" ") < 1:  
-        return make_response(
-            jsonify(
-                Mensagem="Por favor, insira um endereço válido."
-            ), 400  # Cód. Bad Request
-        )
+    if endereco.count(" ") < 1:
+        return "Por favor, insira um endereço válido."
+    
+    # Todas as validações foram aprovadas. Retorna a função sem erros
+    return None
 
-
-
-    ## Validação de CPF
-    ############################################################
-    # Checa a existência de letras ou caracteres diferentes de . ou -
-    if re.search(r"[^0-9.\-]", cpf):
-        return make_response(
-            jsonify(Mensagem="CPF inválido. Utilize apenas números e (.) ou (-) como divisores se desejar."), 400
-        )
-
-    # Remove separadores para demais validações
-    cpf = cpf.replace(".", "").replace("-", "")
+def valida_cpf(cpf):
+    # Limpa o cpf inserido, deixando apenas números
+    cpf = re.sub(r'[^0-9]', '', cpf)
 
     # Verifica se o cpf inserido possui 11 caracteres
-    if not len(cpf) == 11:
-        return make_response(
-            jsonify(Mensagem="CPF inválido. Insira um CPF com 11 números com ou sem separadores"), 400
-        )
+    if len(cpf) != 11:
+        return "CPF inválido. Insira um CPF com 11 números com ou sem separadores."
 
-    # Inserindo as separações
-    cpf = cpf[:3] + "." + cpf[3:6] + "." + cpf[6:9] + "-" + cpf[9:]
+    # Verifica validade do primeiro dígito verificador
+    soma_produtos = sum(int(a)*b for a, b in zip(cpf[0:9], range(10, 1, -1)))
+    digito_esperado = (soma_produtos * 10 % 11) % 10
+    if int(cpf[9]) != digito_esperado:
+        return "CPF inválido. Insira um CPF válido."
 
+    # Verifica validade do segundo dígito verificador
+    soma_produtos1 = sum(int(a)*b for a, b in zip(cpf[0:10], range(11, 1, -1)))
+    digito_esperado1 = (soma_produtos1 * 10 % 11) % 10
+    if int(cpf[10]) != digito_esperado1:
+        return "CPF inválido. Insira um CPF válido."
 
+    # Todas as validações foram aprovadas. Retorna a função sem erros
+    return None
 
-    ## Validação de Estado Civil
-    ############################################################
-    estado_civil = estado_civil.lower() # Padroniza
-
-    #Verifica se estado civil inserido é válido
-    estados_civis = [
+def valida_estado_civil(estado_civil):
+    estados_civis_validos = [
     'solteiro', 'solteira',
     'casado', 'casada',
     'divorciado', 'divorciada',
@@ -153,57 +89,122 @@ def create():
     'viuvo', 'viuva',
     'separado','separada',
     'separado judicialmente', 'separada judicialmente'
-    ]
-    if not estado_civil in estados_civis:
-        return make_response(
-            jsonify(Mensagem="Estado civil inválido. Insira uma das opções: Solteiro(a), Casado(a), Divorciado(a), Viúvo(a) ou Separado(a) judicialmente."), 400
-        )
+    ]   
+
+    #Verifica se estado civil inserido é válido
+    if estado_civil.lower() not in estados_civis_validos:
+        return "Estado civil inválido. Insira uma das opções: Solteiro(a), Casado(a), Divorciado(a), Viúvo(a) ou Separado(a) judicialmente."
     
-    # Formata a primeira letra como maiuscula para inserção no BD
-    estado_civil = estado_civil[0].upper() + estado_civil[1:]
-    ############################################################
-    ## Fim das validações
+    # Todas as validações foram aprovadas. Retorna a função sem erros
+    return None
 
+## FUNÇÕES > FORMATAÇÕES ( CREATE | UPDTAE ) ##
+def formata_cpf(cpf):
+    # Limpa o cpf inserido
+    cpf = re.sub(r'[^0-9]', '', cpf)
 
+    # Retorna o cpf formatado no padrão nacional
+    return f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
 
-    # Gerando nova ID para inserção no BD
-    if Pessoas:  # Verifica se a lista nao esta vazia
+def formata_data_nascimento(data_nascimento):
+    #Limpa a data de nascimento inserida, deixando apenas números
+    data_nascimento = re.sub(r'[^0-9]', '', data_nascimento)
+    return data_nascimento[:2] + "/" + data_nascimento[2:4] + "/" + data_nascimento[4:]
+
+def formata_estado_civil(estado_civil):
+    return estado_civil[0].upper() + estado_civil[1:].lower()
+
+## FUNÇÕES > DEMAIS FUNÇÕES ##
+def sobe_estrtura_formatada (nome,data_nascimento,endereco,cpf,estado_civil): # Gera estrutura de dados formatados e insere no "BD"
+    
+    # Verifica se a lista importatada do "BD" nao esta vazia e gera ID da pessoa
+    if Pessoas:  
         novo_id = max(pessoa['id'] for pessoa in Pessoas) + 1
     else:
         novo_id = 1 
 
-    # Adicionando o 'ID' como primeira linha do item
-    pessoa_com_id = {'id': novo_id,
-                     'nome': nome,
-                     'data_nascimento': data_nascimento,
-                     'endereco': endereco,
-                     'cpf': cpf,
-                     'estado_civil': estado_civil}
+    # Montando estrtura de dados validada
+    estrutura_de_dados_validada = {'id': novo_id,
+                                  'nome': nome.title(),
+                                  'data_nascimento': data_nascimento,
+                                  'endereco': endereco.title(),
+                                  'cpf': cpf,
+                                  'estado_civil': estado_civil}
 
-    # Adiciona ao BD
-    Pessoas.append(pessoa_com_id)
+    # Adiciona ao "BD"
+    Pessoas.append(estrutura_de_dados_validada)
+
+    return estrutura_de_dados_validada
+
+
+### ROTAS CRUD ###
+## CREATE | Cadastro
+@app.route('/cadastro', methods=['POST'])
+def create():
+    # Converte body do request
+    dados_inseridos = request.json
+
+    # Associa respostas inseridas às variáveis de controle
+    nome = dados_inseridos.get('nome', '').strip()
+    data_nascimento = dados_inseridos.get('data_nascimento', '').strip()
+    endereco = dados_inseridos.get('endereco', '').strip()
+    cpf = dados_inseridos.get('cpf', '').strip()
+    estado_civil = dados_inseridos.get('estado_civil', '').strip()
+
+    # Cria dicionário com a estrutura de dados e as respostas do usuário
+    estrutura_e_dados_inseridos = { 
+        "nome": nome,
+        "data de nascimento": data_nascimento,
+        "endereço": endereco,
+        "CPF": cpf,
+        "estado civil": estado_civil
+    }
+
+    # VALIDAÇÕES #
+    # Campos preenchidos
+    for campo, valor in estrutura_e_dados_inseridos.items(): # Loop pelos itens do dicionário de respostas
+        if valor == '': # Se algum campo estiver vazio:
+            return make_response(jsonify(Mensagem=f"Por favor, preencha o campo de {campo} para continuar."), 400) #Bad Request
+            
+    # Loop pelas demais funções de validações (nome, data_nascimento, endereço, cpf e estado_civil)
+    for validar, valor in [(valida_nome, nome),
+                           (valida_data_nascimento, data_nascimento),
+                           (valida_endereco, endereco),
+                           (valida_cpf, cpf),
+                           (valida_estado_civil, estado_civil)]:
+        erro = validar(valor)
+
+        if erro:
+            return make_response(jsonify(Mensagem= erro), 400)
+
+    # FORMATAÇÕES #
+    data_nascimento = formata_data_nascimento(data_nascimento)
+    cpf = formata_cpf(cpf)
+    estado_civil = formata_estado_civil(estado_civil)
+
+    # FINALIZAÇÃO DO CREATE #
+    pessoa_validada = sobe_estrtura_formatada (nome, data_nascimento, endereco, cpf, estado_civil)
 
     # Solicitando e tratando retorno
-    return make_response (
-        jsonify (
-            Mensagem = 'Pessoa cadastrada com sucesso!',
-            Pessoa = pessoa_com_id), 201
-    ) 
-
+    return make_response (jsonify (Mensagem = f"Pessoa '{pessoa_validada['nome']}' cadastrada com sucesso!",
+                                   Dados_cadastrados = pessoa_validada), 201) # Created
+    
 ## READ | Listagem
 @app.route('/listagem', methods=['GET'])
 def read():
     return make_response(
         jsonify (
-            Titulo='Pessoas Cadastradas',
-            Pessoas=Pessoas)
+            Solicitação='Listagem de pessoas cadastradas no banco de dados',
+            Resposta=Pessoas)
         ) 
 
 ## UPDATE | Atualização
 @app.route('/atualizar/<int:pessoa_id>', methods=['PUT'])
 def update(pessoa_id):
     global Pessoas
-    dados_atualizados = request.json
+
+    # Converte body do request
+    dados_para_atualizar = request.json
 
     # Iniciar a variavel de controle
     pessoa_encontrada = None
@@ -214,161 +215,56 @@ def update(pessoa_id):
             pessoa_encontrada = pessoa
             break  # Se encontrada interrompe o loop
 
+    # Verifica se a pessoa foi encontrada
     if pessoa_encontrada:
-        # Atualiza os dados, verificando se cada campo foi fornecido
-        pessoa_encontrada['nome'] = dados_atualizados.get('nome', pessoa['nome']).strip()
-        pessoa_encontrada['nascimento'] = dados_atualizados.get('nascimento', pessoa['nascimento']).strip()
-        pessoa_encontrada['endereco'] = dados_atualizados.get('endereco', pessoa['endereco']).strip()
-        pessoa_encontrada['cpf'] = dados_atualizados.get('cpf', pessoa['cpf']).strip()
-        pessoa_encontrada['estado_civil'] = dados_atualizados.get('estado_civil', pessoa['estado_civil']).strip()
+        # Campos que podem ser atualizados
+        campos = ['nome', 'data_nascimento', 'endereco', 'cpf', 'estado_civil']
         
-        ## Validaçoes ##
-        ## Validacao de campos inseridos
-        ############################################################
-        nome = dados_atualizados.get('nome', pessoa_encontrada['nome']).strip()
-        data_nascimento = dados_atualizados.get('nascimento', pessoa_encontrada['nascimento']).strip()
-        endereco = dados_atualizados.get('endereco', pessoa_encontrada['endereco']).strip()
-        cpf = dados_atualizados.get('cpf', pessoa_encontrada['cpf']).strip()
-        estado_civil = dados_atualizados.get('estado_civil', pessoa_encontrada['estado_civil']).strip()
-
-
-        ## Validação de Nome completo e válido
-        ############################################################
-        # Verifica se possui nome e sobrenome
-        if nome.count(" ") < 1:  
-            return make_response(
-                jsonify(
-                    Mensagem="Por favor, insira nome e sobrenome."
-                ), 400  # Cód. Bad Request
-            )
+        # Dicionário para armazenar os valores atualizados
+        valores_atualizados = {}
         
-        # Verifica se o nome contém números ou caracteres especiais não permitidos
-        if re.search(r'[0-9.,/\'":;!@#$%^&*()_+=-]', nome):
-            return make_response(
-                jsonify(
-                    Mensagem="O nome não deve conter números ou caracteres especiais."
-                ), 400
-            )
-
-
-
-        ## Validação de data de nascimento 
-        ############################################################
-        # Checa a existência de letras ou caracteres diferentes de / ou -
-        if re.search(r"[^0-9/\-]", data_nascimento):
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. Utilize apenas números e (/) ou (-) como divisores."), 400
-            )
-
-        # Remove separadores para demais validações
-        data_nascimento = data_nascimento.replace("/", "").replace("-", "")
-        print (data_nascimento)
-
-        # Verifica se a data inserida possui 8 caracteres
-        if not len(data_nascimento) == 8:
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. O formato deve ser DD/MM/AAAA."), 400
-            )
-        print (data_nascimento)
-
-        # Verifica se data condiz com o padrão DD/MM/AAAA e se a idade é menor que 122 anos
-        dia_inserido = int(data_nascimento[:2])
-        # Dia
-        if dia_inserido > 31:
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. O dia inserido não é válido."), 400
-            )
-        mes_inserido = int(data_nascimento[2:4])
-        # Mês
-        if mes_inserido > 12:
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. O mês inserido não é válido."), 400
-            )
-        # Ano
-        ano_inserido = int(data_nascimento[4:8]) 
-        ano_atual = datetime.now().year # Obtém o ano atual
-        if ano_inserido >= ano_atual: # Verifica presente ou data futura
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. O ano inserido não é válido."), 400
-            )
-        if ((ano_atual - ano_inserido) >= 122 ): # Verifica idade ultrapassa 122 anos
-            return make_response(
-                jsonify(Mensagem="Data de nascimento inválida. Idade supera os 122 anos."), 400
-            )
-        print (data_nascimento)
-
-        # Inserindo as barras para formar a data no formato DD/MM/AAAA
-        data_nascimento = data_nascimento[:2] + "/" + data_nascimento[2:4] + "/" + data_nascimento[4:]
-        print (data_nascimento)
-
-
-        ## Validação de endereço
-        ############################################################
-        # Verifica se endereço possui pelo menos duas palavras
-        if endereco.count(" ") < 1:  
-            return make_response(
-                jsonify(
-                    Mensagem="Por favor, insira um endereço válido."
-                ), 400  # Cód. Bad Request
-            )
-
-
-
-        ## Validação de CPF
-        ############################################################
-        # Checa a existência de letras ou caracteres diferentes de . ou -
-        if re.search(r"[^0-9.\-]", cpf):
-            return make_response(
-                jsonify(Mensagem="CPF inválido. Utilize apenas números e (.) ou (-) como divisores se desejar."), 400
-            )
-
-        # Remove separadores para demais validações
-        cpf = cpf.replace(".", "").replace("-", "")
-
-        # Verifica se o cpf inserido possui 11 caracteres
-        if not len(cpf) == 11:
-            return make_response(
-                jsonify(Mensagem="CPF inválido. Insira um CPF com 11 números com ou sem separadores"), 400
-            )
-
-        # Inserindo as separações
-        cpf = cpf[:3] + "." + cpf[3:6] + "." + cpf[6:9] + "-" + cpf[9:]
-
-
-
-        ## Validação de Estado Civil
-        ############################################################
-        estado_civil = estado_civil.lower() # Padroniza
-
-        #Verifica se estado civil inserido é válido
-        estados_civis = [
-        'solteiro', 'solteira',
-        'casado', 'casada',
-        'divorciado', 'divorciada',
-        'viúvo', 'viúva',
-        'viuvo', 'viuva',
-        'separado','separada',
-        'separado judicialmente', 'separada judicialmente'
-        ]
-        if not estado_civil in estados_civis:
-            return make_response(
-                jsonify(Mensagem="Estado civil inválido. Insira uma das opções: Solteiro(a), Casado(a), Divorciado(a), Viúvo(a) ou Separado(a) judicialmente."), 400
-            )
+        # Atualiza os dados da pessoa encontrada
+        for campo in campos:
+            valor_atualizado = dados_para_atualizar.get(campo, pessoa_encontrada[campo]).strip()
+            pessoa_encontrada[campo] = valor_atualizado
+            valores_atualizados[campo] = valor_atualizado
         
-        # Formata a primeira letra como maiuscula para inserção no BD
-        estado_civil = estado_civil[0].upper() + estado_civil[1:]
-        ############################################################
-        ## Fim das validações
+        # Atualiza as variáveis locais
+        nome = valores_atualizados['nome']
+        data_nascimento = valores_atualizados['data_nascimento']
+        endereco = valores_atualizados['endereco']
+        cpf = valores_atualizados['cpf']
+        estado_civil = valores_atualizados['estado_civil']
 
-        # Atualizando variaveis
-        pessoa_encontrada['nome'] = nome
-        pessoa_encontrada['nascimento'] = data_nascimento
-        pessoa_encontrada['endereco'] = endereco
-        pessoa_encontrada['cpf'] = cpf
-        pessoa_encontrada['estado_civil'] = estado_civil
+        # VALIDAÇÕES #
+        # Loop pelas funções de validações (nome, data_nascimento, endereço, cpf e estado_civil)
+        for validar, valor in [(valida_nome, nome),
+                            (valida_data_nascimento, data_nascimento),
+                            (valida_endereco, endereco),
+                            (valida_cpf, cpf),
+                            (valida_estado_civil, estado_civil)]:
+            erro = validar(valor)
+
+            if erro:
+                return make_response(jsonify(Mensagem= erro), 400)
+
+        # FORMATAÇÕES #
+        data_nascimento = formata_data_nascimento(data_nascimento)
+        cpf = formata_cpf(cpf)
+        estado_civil = formata_estado_civil(estado_civil)
+
+        # Montando e atualizando estrutura de dados validada
+        pessoa_encontrada.update({
+            'nome': nome.title(),
+            'data_nascimento': data_nascimento,
+            'endereco': endereco.title(),
+            'cpf': cpf,
+            'estado_civil': estado_civil
+        })
 
         # Retorna resposta de sucesso
-        return make_response(jsonify({'Mensagem': f"Pessoa '{pessoa_encontrada['nome']}' atualizada com sucesso!"}), 200)
+        return make_response(jsonify({'Mensagem': f"Pessoa '{pessoa_encontrada['nome']}' atualizada com sucesso!",
+                              'Ficha_atualizada': pessoa_encontrada}), 200) #OK
 
     else:
         # Caso a pessoa com o ID fornecido não seja encontrada
@@ -406,7 +302,7 @@ def delete(pessoa_id):
 ### TRATAMENTO DE ERROS GLOBAIS ###
 @app.errorhandler(400)
 def bad_request(error):
-    return jsonify({"error": "Bad Request", "message": "O servidor não conseguiu entender a requisição devido a sintaxe inválida."}), 400
+    return jsonify({"error": "Bad Request", "message": "Sintaxe inválida."}), 400
 
 @app.errorhandler(404)
 def not_found(error):
@@ -431,8 +327,6 @@ def service_unavailable(error):
 @app.errorhandler(504)
 def gateway_timeout(error):
     return jsonify({"error": "Gateway Timeout", "message": "O servidor não recebeu uma resposta a tempo."}), 504
-
-
 
 
 # Iniciar API
